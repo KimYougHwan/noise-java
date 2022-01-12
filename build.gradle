@@ -1,25 +1,26 @@
 buildscript {
     repositories {
-        jcenter()
         mavenLocal()
         mavenCentral()
     }
 }
 
 plugins {
-    id "com.jfrog.bintray" version "1.8.1"
     id 'maven-publish'
+    id 'org.ajoberstar.grgit' version '4.1.1'
 }
 apply plugin: "java"
-apply plugin: 'maven'
+apply plugin: 'maven-publish'
+
+
+rootProject.version = calculatePublishVersion()
+def specificVersion = calculateVersion()
+def isDevelopBuild = rootProject.version.contains('develop')
 
 group 'tech.pegasys'
-version '1.0.0'
 
 repositories {
-    jcenter()
     mavenCentral()
-    google()
 }
 
 sourceCompatibility = 8
@@ -29,10 +30,10 @@ dependencies {
 
     // JUnit testing.
     testImplementation 'javax.xml.bind:jaxb-api:2.3.0'
-    testImplementation 'junit:junit:4.13.1'
-    testCompile "org.junit.jupiter:junit-jupiter-api:5.2.0"
-    testCompile "org.junit.jupiter:junit-jupiter-params:5.2.0"
-    testRuntime "org.junit.jupiter:junit-jupiter-engine:5.2.0"
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation "org.junit.jupiter:junit-jupiter-api:5.8.2"
+    testImplementation "org.junit.jupiter:junit-jupiter-params:5.8.2"
+    testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine:5.8.2"
 }
 
 test {
@@ -54,7 +55,20 @@ artifacts {
     archives javadocJar
 }
 
+def cloudsmithUser = project.hasProperty('cloudsmithUser') ? project.property('cloudsmithUser') : System.getenv('CLOUDSMITH_USER')
+def cloudsmithKey = project.hasProperty('cloudsmithApiKey') ? project.property('cloudsmithApiKey') : System.getenv('CLOUDSMITH_API_KEY')
+
 publishing {
+    repositories {
+        maven {
+            name = "cloudsmith"
+            url = "https://api-g.cloudsmith.io/maven/consensys/maven/"
+            credentials {
+                username = cloudsmithUser
+                password = cloudsmithKey
+            }
+        }
+    }
     publications {
         mavenJava(MavenPublication) {
             groupId = project.group
@@ -82,17 +96,41 @@ publishing {
     }
 }
 
-bintray {
-    user = findProperty("bintrayUser")
-    key = findProperty("bintrayApiKey")
-    publish = true
-    setPublications("mavenJava")
-    pkg {
-        userOrg = 'consensys'
-        repo = 'pegasys-repo'
-        name = 'noise-java'
-        licenses = ['Apache-2.0']
-        vcsUrl = 'https://github.com/ConsenSys/noise-java'
+
+// Calculate the version that this build would be published under (if it is published)
+// If this exact commit is tagged, use the tag
+// If this is on a release-* branch, use the most recent tag appended with +develop (e.g. 0.1.1-RC1+develop)
+// Otherwise, use develop
+def calculatePublishVersion() {
+    if (!grgit) {
+        return 'UNKNOWN'
     }
+    def specificVersion = calculateVersion()
+    def isReleaseBranch = grgit.branch.current().name.startsWith('release-')
+    if (specificVersion.contains('+')) {
+        return isReleaseBranch ? "${specificVersion.substring(0, specificVersion.indexOf('+'))}+develop" : "develop"
+    }
+    return specificVersion
 }
 
+// Calculate the version that teku --version will report (among other places)
+// If this exact commit is tagged, use the tag
+// Otherwise use git describe --tags and replace the - after the tag with a +
+def calculateVersion() {
+    if (!grgit) {
+        return 'UNKNOWN'
+    }
+    String version = grgit.describe(tags: true)
+    def versionPattern = ~/^(?<lastVersion>.*)-(?<devVersion>[0-9]+-g[a-z0-9]+)$/
+    def matcher = version =~ versionPattern
+    if (matcher.find()) {
+        return "${matcher.group("lastVersion")}+${matcher.group("devVersion")}"
+    }
+    return version
+}
+
+task printVersion() {
+    doFirst {
+        print "Specific version: ${specificVersion}  Publish version: ${project.version}"
+    }
+}
