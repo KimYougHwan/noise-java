@@ -6,13 +6,14 @@ To add dependency to your Gradle project:
 
 ```gradle
 repositories {
-   jcenter()
+   maven { url "https://artifacts.consensys.net/public/maven/maven/" }
 }
 
 dependencies {
   implementation 'tech.pegasys:noise-java:1.0.0'
 }
 ```
+
 
 or to Maven project:
 
