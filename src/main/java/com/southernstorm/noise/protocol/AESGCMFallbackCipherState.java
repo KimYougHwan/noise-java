@@ -23,12 +23,14 @@
 package com.southernstorm.noise.protocol;
 
 import java.util.Arrays;
+import java.util.Set;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.ShortBufferException;
 
 import com.southernstorm.noise.crypto.GHASH;
 import com.southernstorm.noise.crypto.RijndaelAES;
+
 
 /**
  * Fallback implementation of "AESGCM" on platforms where
@@ -209,31 +211,31 @@ class AESGCMFallbackCipherState implements CipherState {
 		if (ad != null) {
 		    try {
 		        // MessageDigest를 사용하여 더 안전한 해시 생성
-			MessageDigest digest = MessageDigest.getInstance("SHA-256");
-			byte[] nonceHash = digest.digest(ad);
-			String nonceId = Base64.getEncoder().encodeToString(nonceHash);
+				MessageDigest digest = MessageDigest.getInstance("SHA-256");
+				byte[] nonceHash = digest.digest(ad);
+				String nonceId = Base64.getEncoder().encodeToString(nonceHash);
 			
-			// 스레드 안전성을 위해 동기화 블록 사용
-			synchronized(usedNonces) {
-			    if (usedNonces.contains(nonceId)) {
-			        throw new IllegalStateException("Nonce has already been used");
-			    }
+				// 스레드 안전성을 위해 동기화 블록 사용
+				synchronized(usedNonces) {
+			    	if (usedNonces.contains(nonceId)) {
+			        	throw new IllegalStateException("Nonce has already been used");
+			    	}
 				
-			    // nonce 컬렉션 크기 관리
-			    if (usedNonces.size() > MAX_NONCE_CACHE_SIZE) {
-			        // 간단히 모두 지우는 방식 사용
-				usedNonces.clear();
-			    }
+			    	// nonce 컬렉션 크기 관리
+			    	if (usedNonces.size() > MAX_NONCE_CACHE_SIZE) {
+			        	// 간단히 모두 지우는 방식 사용
+						usedNonces.clear();
+			    	}
 				
-			    usedNonces.add(nonceId);
-			}
+			    	usedNonces.add(nonceId);
+				}
 		    } catch (NoSuchAlgorithmException e) {
 		        // SHA-256을 지원하지 않는 경우 (매우 드문 경우)
-			throw new RuntimeException("Cryptographic algorithm not available", e);
-	            }
-                }      
+				throw new RuntimeException("Cryptographic algorithm not available", e);
+	        }
+        }      
 	
-	        try {
+	    try {
 	            // 암호화 준비
 		    setup(ad);
 		
@@ -250,15 +252,16 @@ class AESGCMFallbackCipherState implements CipherState {
 		        ciphertext[ciphertextOffset + length + index] ^= hashKey[index];
 		
 		    return length + 16;
-	        } finally {
-	            // 민감한 데이터 제거 - 항상 실행되도록 finally 블록 사용
+	        
+		} finally {
+	        // 민감한 데이터 제거 - 항상 실행되도록 finally 블록 사용
 		    if (hashKey != null) {
 		        Arrays.fill(hashKey, (byte) 0);
 		    }
-	        }
-    
 	    }
-        }
+    
+	}
+        
 	@Override
 	public int decryptWithAd(byte[] ad, byte[] ciphertext,
 			int ciphertextOffset, byte[] plaintext, int plaintextOffset,

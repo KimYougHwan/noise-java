@@ -23,6 +23,7 @@
 package com.southernstorm.noise.protocol;
 
 import java.util.Arrays;
+import java.util.Set;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.ShortBufferException;
@@ -233,7 +234,7 @@ class ChaChaPolyCipherState implements CipherState {
     		// nonce(ad) 재사용 방지 - 보다 안전한 해시 사용
 		if (ad != null) {
 			try {
-			// MessageDigest를 사용하여 더 안전한 해시 생성
+				// MessageDigest를 사용하여 더 안전한 해시 생성
 				MessageDigest digest = MessageDigest.getInstance("SHA-256");
 				byte[] nonceHash = digest.digest(ad);
 				String nonceId = Base64.getEncoder().encodeToString(nonceHash);
@@ -279,8 +280,6 @@ class ChaChaPolyCipherState implements CipherState {
 			if (polyKey != null) {
 				Arrays.fill(polyKey, (byte) 0);
 			}
-	
-			
 		}
 	}
 
