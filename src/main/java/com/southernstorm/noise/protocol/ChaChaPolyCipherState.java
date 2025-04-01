@@ -41,6 +41,11 @@ class ChaChaPolyCipherState implements CipherState {
 	private byte[] polyKey;
 	long n;
 	private boolean haskey;
+
+	private static final Set<String> usedNonces = Collections.synchronizedSet(new HashSet<>());
+    
+	// nonce 캐시 최대 크기
+    	private static final int MAX_NONCE_CACHE_SIZE = 10000;
 	
 	/**
 	 * Constructs a new cipher state for the "ChaChaPoly" algorithm.
@@ -215,26 +220,68 @@ class ChaChaPolyCipherState implements CipherState {
 			byte[] ciphertext, int ciphertextOffset, int length) throws ShortBufferException {
 		int space;
 		if (ciphertextOffset < 0 || ciphertextOffset > ciphertext.length)
-			throw new IllegalArgumentException();
+			throw new IllegalArgumentException("Invalid ciphertext offset: " + ciphertextOffset);
 		if (length < 0 || plaintextOffset < 0 || plaintextOffset > plaintext.length || length > plaintext.length || (plaintext.length - plaintextOffset) < length)
-			throw new IllegalArgumentException();
+			throw new IllegalArgumentException("Invalid plaintext parameters: offset=" + plaintextOffset + ", length=" + length + ", array length=" + plaintext.length);
 		space = ciphertext.length - ciphertextOffset;
 		if (!haskey) {
-			// The key is not set yet - return the plaintext as-is.
-			if (length > space)
-				throw new ShortBufferException();
-			if (plaintext != ciphertext || plaintextOffset != ciphertextOffset)
-				System.arraycopy(plaintext, plaintextOffset, ciphertext, ciphertextOffset, length);
-			return length;
+			throw new IllegalStateException("Encryption key is not set");
 		}
 		if (space < 16 || length > (space - 16))
-			throw new ShortBufferException();
-		setup(ad);
-		encrypt(plaintext, plaintextOffset, ciphertext, ciphertextOffset, length);
-		poly.update(ciphertext, ciphertextOffset, length);
-		finish(ad, length);
-		System.arraycopy(polyKey, 0, ciphertext, ciphertextOffset + length, 16);
-		return length + 16;
+			throw new ShortBufferException("Output buffer too short: needs " + (length + 16) + " bytes, has " + space + " bytes");
+		// nonce(ad) 재사용 방지 (클래스 레벨에 Set<String> usedNonces 필드 필요)
+    		// nonce(ad) 재사용 방지 - 보다 안전한 해시 사용
+		if (ad != null) {
+			try {
+			// MessageDigest를 사용하여 더 안전한 해시 생성
+				MessageDigest digest = MessageDigest.getInstance("SHA-256");
+				byte[] nonceHash = digest.digest(ad);
+				String nonceId = Base64.getEncoder().encodeToString(nonceHash);
+		
+				// 스레드 안전성을 위해 동기화 블록 사용
+				synchronized(usedNonces) {
+					if (usedNonces.contains(nonceId)) {
+						throw new IllegalStateException("Nonce has already been used");
+					}
+			
+					// nonce 컬렉션 크기 관리
+					if (usedNonces.size() > MAX_NONCE_CACHE_SIZE) {
+						// 가장 오래된 항목부터 제거하는 로직 필요
+						// 여기서는 간단히 모두 지우는 방식 사용
+						usedNonces.clear();
+					}
+			
+					usedNonces.add(nonceId);
+				}
+			} catch (NoSuchAlgorithmException e) {
+				// SHA-256을 지원하지 않는 경우 (매우 드문 경우)
+				throw new RuntimeException("Cryptographic algorithm not available", e);
+			}
+		}
+		
+		try {
+			// 암호화 준비
+			setup(ad);
+	
+			// 실제 암호화 수행
+			encrypt(plaintext, plaintextOffset, ciphertext, ciphertextOffset, length);
+	
+			// MAC 계산
+			poly.update(ciphertext, ciphertextOffset, length);
+			finish(ad, length);
+	
+			// MAC 태그 추가
+			System.arraycopy(polyKey, 0, ciphertext, ciphertextOffset + length, 16);
+	
+			return length + 16;
+		} finally {
+			// 민감한 데이터 제거 - 항상 실행되도록 finally 블록 사용
+			if (polyKey != null) {
+				Arrays.fill(polyKey, (byte) 0);
+			}
+	
+			
+		}
 	}
 
 	@Override
