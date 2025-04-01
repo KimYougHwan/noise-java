@@ -1,0 +1,10 @@
+            - name: Setup Java JDK
+  uses: actions/setup-java@v4.7.0
+  with:
+    java-version: '21'
+    distribution: 'corretto'  # Amazon Corretto JDK
+    java-package: 'jdk'  # JDK 패키지
+    architecture: 'x64'  # 시스템 아키텍처
+    check-latest: 'true'  # 최신 버전 체크
+    cache: 'maven'  # Maven 의존성 캐시
+    
