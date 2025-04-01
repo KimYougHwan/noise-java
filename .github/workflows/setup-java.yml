@@ -6,7 +6,8 @@ on:  # 워크플로우 트리거 조건
       - main
   pull_request:
     branches:
-      - main  # main 브랜치에 대한 PR 생성 시 실행    
+      - main  # main 브랜치에 대한 PR 생성 시 실행 
+  workflow_dispatch:  # 수동 실행 추가
 jobs:
   build:
     runs-on: ubuntu-latest  # 워크플로우를 실행할 환경
