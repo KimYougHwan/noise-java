@@ -53,6 +53,8 @@ class AESGCMOnCtrCipherState implements CipherState {
 	private byte[] hashKey;
 	private GHASH ghash;
 
+	private static final Set<String> usedNonces = Collections.synchronizedSet(new HashSet<>());
+        private static final int MAX_NONCE_CACHE_SIZE = 10000;
 	/**
 	 * Constructs a new cipher state for the "AESGCM" algorithm.
 	 * 
@@ -217,46 +219,87 @@ class AESGCMOnCtrCipherState implements CipherState {
 	public int encryptWithAd(byte[] ad, byte[] plaintext, int plaintextOffset,
 			byte[] ciphertext, int ciphertextOffset, int length)
 			throws ShortBufferException {
-		int space;
-		if (ciphertextOffset < 0 || ciphertextOffset > ciphertext.length)
-			throw new IllegalArgumentException();
-    if (length < 0 || plaintextOffset < 0 || plaintextOffset > plaintext.length || length > plaintext.length || (plaintext.length - plaintextOffset) < length)
-			throw new IllegalArgumentException();
-		space = ciphertext.length - ciphertextOffset;
-		if (keySpec == null) {
-			// The key is not set yet - return the plaintext as-is.
-			if (length > space)
-				throw new ShortBufferException();
-			if (plaintext != ciphertext || plaintextOffset != ciphertextOffset)
-				System.arraycopy(plaintext, plaintextOffset, ciphertext, ciphertextOffset, length);
-			return length;
-		}
-		if (space < 16 || length > (space - 16))
-			throw new ShortBufferException();
+		
+	    int space;
+	
+	    // 구체적인 오류 메시지 추가 및 경계 검사 강화
+	    if (ciphertextOffset < 0 || ciphertextOffset > ciphertext.length)
+		throw new IllegalArgumentException("Invalid ciphertext offset: " + ciphertextOffset);
+	
+	    if (length < 0 || plaintextOffset < 0 || plaintextOffset > plaintext.length || 
+		length > plaintext.length || (plaintext.length - plaintextOffset) < length)
+		throw new IllegalArgumentException("Invalid plaintext parameters: offset=" + 
+			plaintextOffset + ", length=" + length + ", array length=" + plaintext.length);
+	
+	    space = ciphertext.length - ciphertextOffset;
+	
+	    // 키가 없는 경우 예외 발생 (평문 반환 대신)
+	    if (keySpec == null) {
+		throw new IllegalStateException("Encryption key is not set");
+	    }
+	
+	    // 출력 버퍼 크기 확인 (MAC 태그 16바이트 포함)
+	    if (space < 16 || length > (space - 16))
+		throw new ShortBufferException("Output buffer too short: needs " + (length + 16) + 
+			" bytes, has " + space + " bytes");
+	
+	    // nonce(ad) 재사용 방지 - 안전한 해시 사용
+	    if (ad != null) {
 		try {
-			setup(ad);
-			int result = cipher.update(plaintext, plaintextOffset, length, ciphertext, ciphertextOffset);
-			cipher.doFinal(ciphertext, ciphertextOffset + result);
-		} catch (InvalidKeyException e) {
-			// Shouldn't happen.
-			throw new IllegalStateException(e);
-		} catch (InvalidAlgorithmParameterException e) {
-			// Shouldn't happen.
-			throw new IllegalStateException(e);
-		} catch (IllegalBlockSizeException e) {
-			// Shouldn't happen.
-			throw new IllegalStateException(e);
-		} catch (BadPaddingException e) {
-			// Shouldn't happen.
-			throw new IllegalStateException(e);
+		    // MessageDigest를 사용하여 더 안전한 해시 생성
+		    MessageDigest digest = MessageDigest.getInstance("SHA-256");
+		    byte[] nonceHash = digest.digest(ad);
+		    String nonceId = Base64.getEncoder().encodeToString(nonceHash);
+			
+		    // 스레드 안전성을 위해 동기화 블록 사용
+		    synchronized(usedNonces) {
+		        if (usedNonces.contains(nonceId)) {
+			    throw new IllegalStateException("Nonce has already been used");
+			}
+				
+			// nonce 컬렉션 크기 관리
+			if (usedNonces.size() > MAX_NONCE_CACHE_SIZE) {
+			    // 간단히 모두 지우는 방식 사용
+			    usedNonces.clear();
+			}
+				
+			usedNonces.add(nonceId);
+		    }
+	        } catch (NoSuchAlgorithmException e) {
+		    // SHA-256을 지원하지 않는 경우 (매우 드문 경우)
+		    throw new RuntimeException("Cryptographic algorithm not available", e);
 		}
+	    }
+	
+	    try {
+		// 암호화 준비
+	        setup(ad);
+		
+		// 실제 암호화 수행
+		int result = cipher.update(plaintext, plaintextOffset, length, ciphertext, ciphertextOffset);
+		cipher.doFinal(ciphertext, ciphertextOffset + result);
+		
+		// MAC 계산
 		ghash.update(ciphertext, ciphertextOffset, length);
 		ghash.pad(ad != null ? ad.length : 0, length);
 		ghash.finish(ciphertext, ciphertextOffset + length, 16);
+		
+		// MAC 태그에 해시 키 적용
 		for (int index = 0; index < 16; ++index)
 			ciphertext[ciphertextOffset + length + index] ^= hashKey[index];
+		
 		return length + 16;
-	}
+	    } catch (InvalidKeyException | InvalidAlgorithmParameterException | 
+		IllegalBlockSizeException | BadPaddingException e) {
+		// 예외 처리 개선
+		throw new IllegalStateException("Encryption error: " + e.getMessage(), e);
+	    } finally {
+		// 민감한 데이터 제거 - 항상 실행되도록 finally 블록 사용
+		if (hashKey != null) {
+		    Arrays.fill(hashKey, (byte) 0);
+		}
+	    }
+        }
 
 	@Override
 	public int decryptWithAd(byte[] ad, byte[] ciphertext,
