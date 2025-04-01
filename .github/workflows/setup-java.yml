@@ -1,10 +1,27 @@
+name: Setup Java Workflow
 
-- name: Setup Java JDK
-  uses: actions/setup-java@v4.7.0
-  with:
-    java-version: '21'
-    distribution: 'corretto'  # Amazon Corretto JDK
-    java-package: 'jdk'  # JDK 패키지
-    architecture: 'x64'  # 시스템 아키텍처
-    check-latest: 'true'  # 최신 버전 체크
-    cache: 'maven'  # Maven 의존성 캐시
+on:  # 워크플로우 트리거 조건
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main  # main 브랜치에 대한 PR 생성 시 실행    
+jobs:
+  build:
+    runs-on: ubuntu-latest  # 워크플로우를 실행할 환경
+
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-java@v4
+
+    - name: Setup Java JDK
+      uses: actions/setup-java@v4.7.0
+      with:
+        java-version: '21'
+        distribution: 'corretto'  # Amazon Corretto JDK
+        java-package: 'jdk'  # JDK 패키지
+        architecture: 'x64'  # 시스템 아키텍처
+        check-latest: 'true'  # 최신 버전 체크
+        cache: 'gradle'
+    - run: ./gradlew build --no-daemon
