@@ -1,6 +1,6 @@
 # Fork 
 
-This fork has been created to add a Gradle build and artifact publishing capability
+취약점 분석 및 수정 용도로 fork함
 
 To add dependency to your Gradle project:   
 
