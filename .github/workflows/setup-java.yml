@@ -1,5 +1,5 @@
 
-            - name: Setup Java JDK
+- name: Setup Java JDK
   uses: actions/setup-java@v4.7.0
   with:
     java-version: '21'
