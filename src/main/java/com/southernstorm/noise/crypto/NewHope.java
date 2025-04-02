@@ -56,12 +56,6 @@ public class NewHope {
 		sk = null;
 	}
 
-	@Override
-	protected void finalize()
-	{
-		destroy();
-	}
-
 	/**
 	 * Destroys sensitive material in this object.
 	 * 
@@ -311,11 +305,6 @@ public class NewHope {
 		public Poly()
 		{
 			coeffs = new char [PARAM_N];
-		}
-		
-		protected void finalize()
-		{
-			destroy();
 		}
 		
 		public void destroy()

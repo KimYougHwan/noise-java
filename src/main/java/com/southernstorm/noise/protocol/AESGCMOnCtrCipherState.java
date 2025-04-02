@@ -27,6 +27,8 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.Set;
+import java.util.Collections;
+import java.util.hashSet;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -37,6 +39,7 @@ import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 import com.southernstorm.noise.crypto.GHASH;
+import java.security.MessageDigest;
 
 /**
  * Emulates the "AESGCM" cipher for Noise using the "AES/CTR/NoPadding"
@@ -55,7 +58,7 @@ class AESGCMOnCtrCipherState implements CipherState {
 	private GHASH ghash;
 
 	private static final Set<String> usedNonces = Collections.synchronizedSet(new HashSet<>());
-        private static final int MAX_NONCE_CACHE_SIZE = 10000;
+    private static final int MAX_NONCE_CACHE_SIZE = 10000;
 	/**
 	 * Constructs a new cipher state for the "AESGCM" algorithm.
 	 * 

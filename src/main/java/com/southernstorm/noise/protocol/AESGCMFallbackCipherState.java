@@ -24,12 +24,16 @@ package com.southernstorm.noise.protocol;
 
 import java.util.Arrays;
 import java.util.Set;
+import java.util.Collections;
+import java.util.hashSet;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.ShortBufferException;
 
 import com.southernstorm.noise.crypto.GHASH;
 import com.southernstorm.noise.crypto.RijndaelAES;
+
+import java.security.MessageDigest;
 
 
 /**
