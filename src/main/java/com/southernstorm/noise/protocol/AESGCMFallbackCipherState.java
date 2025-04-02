@@ -34,6 +34,8 @@ import com.southernstorm.noise.crypto.GHASH;
 import com.southernstorm.noise.crypto.RijndaelAES;
 
 import java.security.MessageDigest;
+import java.util.Base64;
+import java.security.NoSuchAlgorithmException;
 
 
 /**

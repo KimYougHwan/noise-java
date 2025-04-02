@@ -40,6 +40,8 @@ import javax.crypto.spec.SecretKeySpec;
 
 import com.southernstorm.noise.crypto.GHASH;
 import java.security.MessageDigest;
+import java.util.Base64;
+
 
 /**
  * Emulates the "AESGCM" cipher for Noise using the "AES/CTR/NoPadding"

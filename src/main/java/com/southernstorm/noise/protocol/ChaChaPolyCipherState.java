@@ -33,6 +33,7 @@ import com.southernstorm.noise.crypto.ChaChaCore;
 import com.southernstorm.noise.crypto.Poly1305;
 
 import java.security.MessageDigest;
+import java.util.Base64;
 
 /**
  * Implements the ChaChaPoly cipher for Noise.
