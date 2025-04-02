@@ -107,7 +107,7 @@ def calculatePublishVersion() {
     }
     def specificVersion = calculateVersion()
     def isReleaseBranch = grgit.branch.current().name.startsWith('release-')
-    if (specificVersion.contains('+')) {
+    if (specificVersion != null && specificVersion.contains('+')) {
         return isReleaseBranch ? "${specificVersion.substring(0, specificVersion.indexOf('+'))}+develop" : "develop"
     }
     return specificVersion
