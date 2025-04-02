@@ -25,7 +25,7 @@ package com.southernstorm.noise.protocol;
 import java.util.Arrays;
 import java.util.Set;
 import java.util.Collections;
-import java.util.hashSet;
+import java.util.HashSet;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.ShortBufferException;
